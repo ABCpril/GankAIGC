@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { ArrowLeft, Copy, Loader2, Save, ShieldCheck, UserCircle, UserPlus } from 'lucide-react';
+import { ArrowLeft, Copy, KeyRound, Loader2, Save, ShieldCheck, UserCircle, UserPlus } from 'lucide-react';
 import { authAPI, userAPI } from '../api';
 import BrandLogo from '../components/BrandLogo';
 import BeerIcon from '../components/BeerIcon';
@@ -13,6 +13,12 @@ const ProfilePage = () => {
   const [invite, setInvite] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [changingPassword, setChangingPassword] = useState(false);
   const [generatingInvite, setGeneratingInvite] = useState(false);
 
   const loadProfile = async () => {
@@ -67,6 +73,55 @@ const ProfilePage = () => {
       toast.error(error.response?.data?.detail || '生成邀请码失败');
     } finally {
       setGeneratingInvite(false);
+    }
+  };
+
+  const handlePasswordChange = (field, value) => {
+    setPasswordForm((current) => ({
+      ...current,
+      [field]: value,
+    }));
+  };
+
+  const handlePasswordSubmit = async (event) => {
+    event.preventDefault();
+    const currentPassword = passwordForm.currentPassword;
+    const newPassword = passwordForm.newPassword;
+    const confirmPassword = passwordForm.confirmPassword;
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      toast.error('请填写完整密码信息');
+      return;
+    }
+    if (newPassword.length < 8) {
+      toast.error('新密码至少 8 位');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error('两次输入的新密码不一致');
+      return;
+    }
+    if (currentPassword === newPassword) {
+      toast.error('新密码不能和当前密码相同');
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      await authAPI.updatePassword({
+        current_password: currentPassword,
+        new_password: newPassword,
+      });
+      setPasswordForm({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+      });
+      toast.success('密码已更新');
+    } catch (error) {
+      toast.error(error.response?.data?.detail || '修改密码失败');
+    } finally {
+      setChangingPassword(false);
     }
   };
 
@@ -172,6 +227,63 @@ const ProfilePage = () => {
                   >
                     {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                     保存昵称
+                  </button>
+                </div>
+              </form>
+
+              <form onSubmit={handlePasswordSubmit} className="gank-card rounded-2xl p-6">
+                <div className="flex items-center gap-2 text-amber-700 mb-4">
+                  <KeyRound className="w-5 h-5" />
+                  <h2 className="text-lg font-bold text-gray-950">修改密码</h2>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-600 mb-2">当前密码</label>
+                    <input
+                      type="password"
+                      value={passwordForm.currentPassword}
+                      onChange={(event) => handlePasswordChange('currentPassword', event.target.value)}
+                      className="gank-input px-4 py-3 rounded-xl"
+                      placeholder="输入当前密码"
+                      autoComplete="current-password"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-600 mb-2">新密码</label>
+                    <input
+                      type="password"
+                      value={passwordForm.newPassword}
+                      onChange={(event) => handlePasswordChange('newPassword', event.target.value)}
+                      minLength={8}
+                      maxLength={128}
+                      className="gank-input px-4 py-3 rounded-xl"
+                      placeholder="至少 8 位"
+                      autoComplete="new-password"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-600 mb-2">确认新密码</label>
+                    <input
+                      type="password"
+                      value={passwordForm.confirmPassword}
+                      onChange={(event) => handlePasswordChange('confirmPassword', event.target.value)}
+                      minLength={8}
+                      maxLength={128}
+                      className="gank-input px-4 py-3 rounded-xl"
+                      placeholder="再次输入新密码"
+                      autoComplete="new-password"
+                    />
+                  </div>
+                </div>
+                <div className="mt-4 flex items-center justify-between gap-3">
+                  <p className="text-xs text-gray-500">修改后下次登录请使用新密码。</p>
+                  <button
+                    type="submit"
+                    disabled={changingPassword}
+                    className="gank-primary-button inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl disabled:opacity-60 text-white font-semibold transition-colors"
+                  >
+                    {changingPassword ? <Loader2 className="w-4 h-4 animate-spin" /> : <KeyRound className="w-4 h-4" />}
+                    保存密码
                   </button>
                 </div>
               </form>

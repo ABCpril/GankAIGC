@@ -7,7 +7,13 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.database import get_db
 from app.models.models import RegistrationInvite, User
-from app.schemas import LoginRequest, RegisterRequest, UserProfileResponse, UserProfileUpdateRequest
+from app.schemas import (
+    LoginRequest,
+    RegisterRequest,
+    UserPasswordUpdateRequest,
+    UserProfileResponse,
+    UserProfileUpdateRequest,
+)
 from app.utils.auth import (
     create_user_access_token,
     get_password_hash,
@@ -125,3 +131,19 @@ async def update_me(
     db.commit()
     db.refresh(current_user)
     return current_user
+
+
+@router.post("/me/password")
+async def update_my_password(
+    payload: UserPasswordUpdateRequest,
+    current_user: User = Depends(get_current_user_from_bearer),
+    db: Session = Depends(get_db),
+):
+    if not current_user.password_hash or not verify_password(payload.current_password, current_user.password_hash):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="当前密码错误")
+    if payload.current_password == payload.new_password:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="新密码不能和当前密码相同")
+
+    current_user.password_hash = get_password_hash(payload.new_password)
+    db.commit()
+    return {"message": "密码已更新"}

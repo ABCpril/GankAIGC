@@ -325,6 +325,112 @@ def test_user_nickname_rejects_blank_value(client):
     assert response.status_code == 400
 
 
+def test_user_can_change_own_password_and_login_with_new_password(client):
+    from app.database import SessionLocal
+    from app.models.models import User
+    from app.utils.auth import create_user_access_token, get_password_hash
+
+    db = SessionLocal()
+    try:
+        user = User(
+            username="alice",
+            password_hash=get_password_hash("Password123!"),
+            access_link="http://testserver/access/alice",
+            is_active=True,
+            credit_balance=0,
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        token = create_user_access_token(user.id, user.username)
+    finally:
+        db.close()
+
+    response = client.post(
+        "/api/auth/me/password",
+        json={"current_password": "Password123!", "new_password": "NewPassword456!"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["message"] == "密码已更新"
+
+    old_login = client.post(
+        "/api/auth/login",
+        json={"username": "alice", "password": "Password123!"},
+    )
+    assert old_login.status_code == 401
+
+    new_login = client.post(
+        "/api/auth/login",
+        json={"username": "alice", "password": "NewPassword456!"},
+    )
+    assert new_login.status_code == 200
+    assert new_login.json()["access_token"]
+
+
+def test_user_change_password_requires_current_password(client):
+    from app.database import SessionLocal
+    from app.models.models import User
+    from app.utils.auth import create_user_access_token, get_password_hash
+
+    db = SessionLocal()
+    try:
+        user = User(
+            username="alice",
+            password_hash=get_password_hash("Password123!"),
+            access_link="http://testserver/access/alice",
+            is_active=True,
+            credit_balance=0,
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        token = create_user_access_token(user.id, user.username)
+    finally:
+        db.close()
+
+    response = client.post(
+        "/api/auth/me/password",
+        json={"current_password": "WrongPassword123!", "new_password": "NewPassword456!"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "当前密码错误"
+
+
+def test_user_change_password_rejects_same_password(client):
+    from app.database import SessionLocal
+    from app.models.models import User
+    from app.utils.auth import create_user_access_token, get_password_hash
+
+    db = SessionLocal()
+    try:
+        user = User(
+            username="alice",
+            password_hash=get_password_hash("Password123!"),
+            access_link="http://testserver/access/alice",
+            is_active=True,
+            credit_balance=0,
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        token = create_user_access_token(user.id, user.username)
+    finally:
+        db.close()
+
+    response = client.post(
+        "/api/auth/me/password",
+        json={"current_password": "Password123!", "new_password": "Password123!"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "新密码不能和当前密码相同"
+
+
 def test_admin_can_create_list_and_toggle_registration_invites(client):
     headers = _admin_auth_headers(client)
 
@@ -611,7 +717,8 @@ def test_docker_services_mount_env_docker_as_runtime_config():
 
     for section in (app_section, worker_section):
         assert "GANKAIGC_ENV_FILE: /app/config/.env.docker" in section
-        assert "./.env.docker:/app/config/.env.docker" in section
+        assert "source: ${GANKAIGC_HOST_PROJECT_DIR:-${PWD:-.}}/.env.docker" in section
+        assert "target: /app/config/.env.docker" in section
 
 
 def test_dockerfile_creates_runtime_config_mount_directory():
