@@ -31,6 +31,7 @@ RUN apt-get update \
     && curl -fsSL "https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-linux-${compose_arch}" \
         -o /usr/local/lib/docker/cli-plugins/docker-compose \
     && chmod +x /usr/local/lib/docker/cli-plugins/docker-compose \
+    && git config --system --add safe.directory /app/source \
     && docker compose version \
     && rm -rf /var/lib/apt/lists/*
 

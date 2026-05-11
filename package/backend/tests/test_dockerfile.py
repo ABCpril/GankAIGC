@@ -12,4 +12,5 @@ def test_dockerfile_keeps_vps_updater_build_requirements():
     assert "ARG DOCKER_COMPOSE_VERSION" in app_stage
     assert "docker-cli" in app_stage
     assert "docker.io" not in app_stage
+    assert "git config --system --add safe.directory /app/source" in app_stage
     assert "docker compose version" in app_stage

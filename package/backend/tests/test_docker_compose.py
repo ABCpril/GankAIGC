@@ -7,7 +7,12 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 def test_default_docker_compose_includes_vps_update_mounts():
     compose = (PROJECT_ROOT / "docker-compose.yml").read_text(encoding="utf-8")
 
-    assert "- ./:/app/source" in compose
+    assert "GANKAIGC_HOST_PROJECT_DIR" in compose
+    assert "source: ${GANKAIGC_HOST_PROJECT_DIR:-${PWD:-.}}" in compose
+    assert "target: /app/source" in compose
+    assert "source: ${GANKAIGC_HOST_PROJECT_DIR:-${PWD:-.}}/.env.docker" in compose
+    assert "target: /app/config/.env.docker" in compose
+    assert "- ./:/app/source" not in compose
     assert "- /var/run/docker.sock:/var/run/docker.sock" in compose
     assert "updater:" in compose
     assert "profiles:" in compose

@@ -61,6 +61,18 @@ def test_admin_update_run_rejects_when_vps_update_disabled(client, monkeypatch):
     assert "VPS 在线更新未启用" in response.json()["detail"]
 
 
+def test_vps_update_rejects_when_host_project_path_is_not_forwarded(monkeypatch, tmp_path):
+    monkeypatch.setattr(config_module.settings, "VPS_UPDATE_ENABLED", True, raising=False)
+    monkeypatch.setattr(config_module.settings, "VPS_UPDATE_WORKDIR", str(tmp_path), raising=False)
+    monkeypatch.delenv("GANKAIGC_HOST_PROJECT_DIR", raising=False)
+    monkeypatch.setattr(update_service.os.path, "exists", lambda path: path == "/var/run/docker.sock")
+
+    can_run, reason = update_service.can_run_vps_update()
+
+    assert can_run is False
+    assert "GANKAIGC_HOST_PROJECT_DIR" in reason
+
+
 def test_admin_update_run_starts_updater_and_writes_audit_log(client, monkeypatch):
     monkeypatch.setattr(config_module.settings, "VPS_UPDATE_ENABLED", True, raising=False)
     monkeypatch.setattr(update_service, "can_run_vps_update", lambda: (True, None))

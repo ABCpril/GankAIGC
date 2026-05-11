@@ -114,6 +114,8 @@ def can_run_vps_update() -> Tuple[bool, Optional[str]]:
         return False, f"源码目录不存在: {settings.VPS_UPDATE_WORKDIR}"
     if not os.path.exists("/var/run/docker.sock"):
         return False, "容器内未挂载 /var/run/docker.sock，无法调用宿主机 Docker。"
+    if not os.environ.get("GANKAIGC_HOST_PROJECT_DIR"):
+        return False, "容器内未设置 GANKAIGC_HOST_PROJECT_DIR，请使用最新 docker-compose.yml 重建 app 容器。"
     return True, None
 
 
