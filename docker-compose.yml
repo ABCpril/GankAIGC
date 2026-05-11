@@ -82,7 +82,7 @@ services:
     working_dir: /app/source
     command: >
       sh -lc "git pull --ff-only origin main &&
-      docker compose --env-file .env.docker up --build -d app worker"
+      docker compose --env-file .env.docker up --build -d"
     volumes:
       - type: bind
         source: ${GANKAIGC_HOST_PROJECT_DIR:-${PWD:-.}}/.env.docker
