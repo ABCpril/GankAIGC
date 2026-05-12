@@ -10,6 +10,10 @@ on:
         description: 'Release tag to upload assets to (e.g., v1.0.0)'
         required: true
         default: 'v1.0.0'
+      postgres_zip_url:
+        description: 'PostgreSQL Windows binaries ZIP URL for the one-click package'
+        required: true
+        default: 'https://get.enterprisedb.com/postgresql/postgresql-16.13-1-windows-x64-binaries.zip'
 
 # Default permissions for all jobs
 permissions:
@@ -84,6 +88,23 @@ jobs:
         with:
           name: GankAIGC-Windows
           path: package/GankAIGC-Windows.zip
+          retention-days: 30
+
+      - name: Build Windows one-click package
+        working-directory: package
+        run: |
+          $postgresZipUrl = "${{ github.event.inputs.postgres_zip_url }}"
+          if ([string]::IsNullOrWhiteSpace($postgresZipUrl)) {
+            $postgresZipUrl = "https://get.enterprisedb.com/postgresql/postgresql-16.13-1-windows-x64-binaries.zip"
+          }
+          .\build-oneclick.ps1 -SkipExeBuild -PostgresZipUrl $postgresZipUrl -CreateZip
+        shell: pwsh
+
+      - name: Upload one-click artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: GankAIGC-Windows-OneClick
+          path: package/dist/GankAIGC-Windows-OneClick.zip
           retention-days: 30
 
   build-linux:
@@ -249,5 +270,5 @@ jobs:
           else
             gh release create "$TAG_NAME" "${files[@]}" \
               --title "GankAIGC $TAG_NAME" \
-              --notes "自动构建普通可执行包。Windows 一键整合包如已存在会保留。"
+              --notes "自动构建 Windows 一键整合包和普通 Windows/Linux/macOS 可执行包。"
           fi

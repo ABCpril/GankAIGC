@@ -55,6 +55,33 @@ function Find-PostgresRoot([string]$SearchRoot) {
     return $null
 }
 
+function Get-PostgresToolVersion([string]$ExePath) {
+    $output = & $ExePath --version 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        throw "无法读取 PostgreSQL 工具版本：$ExePath"
+    }
+    $text = ($output | Select-Object -First 1).ToString()
+    if ($text -notmatch '(\d+(?:\.\d+)+)') {
+        throw "无法解析 PostgreSQL 工具版本：$text"
+    }
+    return $Matches[1]
+}
+
+function Test-PortablePostgresVersions([string]$Root) {
+    $initDb = Join-Path $Root 'bin\initdb.exe'
+    $postgres = Join-Path $Root 'bin\postgres.exe'
+    if (-not (Test-Path -LiteralPath $postgres)) {
+        throw "PostgreSQL 缺少必要文件：$postgres"
+    }
+
+    $initDbVersion = Get-PostgresToolVersion $initDb
+    $postgresVersion = Get-PostgresToolVersion $postgres
+    if ($initDbVersion -ne $postgresVersion) {
+        throw "PostgreSQL 可执行文件版本不一致：initdb.exe=$initDbVersion, postgres.exe=$postgresVersion。请使用干净完整的 Windows binaries ZIP 重新构建。"
+    }
+    Write-Ok "PostgreSQL 工具版本一致：$initDbVersion"
+}
+
 
 function Expand-PostgresArchive([string]$ZipPath, [string]$DestinationPath) {
     New-Item -ItemType Directory -Force -Path $DestinationPath | Out-Null
@@ -171,6 +198,7 @@ try {
     }
 
     $pgRoot = Resolve-PortablePostgresRoot
+    Test-PortablePostgresVersions $pgRoot
 
     $outputFull = [System.IO.Path]::GetFullPath($OutputDir)
     $distDir = Join-Path $PackageDir 'dist'
